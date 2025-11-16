@@ -12,6 +12,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
+import gzip
+
 
 # Configure logging
 logging.basicConfig(
@@ -25,7 +27,7 @@ CORS(app)
 
 # Configuration
 class Config:
-    MODEL_PATH = Path('spam_model.pkl')
+    MODEL_PATH = Path('model.pkl.gz')
     VECTORIZER_PATH = Path('vectorizer.pkl')
     MAX_TEXT_LENGTH = 50000
     MIN_TEXT_LENGTH = 10
@@ -83,17 +85,24 @@ vectorizer = None
 
 try:
     if Config.MODEL_PATH.exists() and Config.VECTORIZER_PATH.exists():
-        with open(Config.MODEL_PATH, 'rb') as f:
+        # model.pkl.gz ko gzip ke through load karo
+        with gzip.open(Config.MODEL_PATH, 'rb') as f:
             model = pickle.load(f)
+
+        # vectorizer normal pickle se hi rahega
         with open(Config.VECTORIZER_PATH, 'rb') as f:
             vectorizer = pickle.load(f)
-        logger.info("✓ Model and vectorizer loaded successfully")
+
+        logger.info(f"✓ Model loaded from {Config.MODEL_PATH}")
+        logger.info(f"✓ Vectorizer loaded from {Config.VECTORIZER_PATH}")
     else:
-        logger.warning("⚠ Model files not found. Using fallback heuristic detection.")
+        logger.warning(f"⚠ Model files not found. Expected: {Config.MODEL_PATH} and {Config.VECTORIZER_PATH}")
+        logger.warning("⚠ Using fallback heuristic detection.")
 except Exception as e:
-    logger.error(f"✗ Error loading models: {e}")
+    logger.error(f"✗ Error loading models: {e}", exc_info=True)
     model = None
     vectorizer = None
+
 
 
 def preprocess_text(text: str) -> str:
@@ -1631,12 +1640,12 @@ if __name__ == '__main__':
     print("=" * 70)
 
     if model is not None and vectorizer is not None:
-        print("✓ ML Model: Loaded successfully")
-        print("✓ Vectorizer: Loaded successfully")
+        print("✓ ML Model: Loaded successfully from", Config.MODEL_PATH)
+        print("✓ Vectorizer: Loaded successfully from", Config.VECTORIZER_PATH)
         print("✓ Detection Mode: Machine Learning")
     else:
         print("⚠ ML Model: Not loaded (using heuristic fallback)")
-        print("⚠ Place 'spam_model.pkl' and 'vectorizer.pkl' in the same folder")
+        print(f"⚠ Make sure '{Config.MODEL_PATH.name}' and '{Config.VECTORIZER_PATH.name}' are in the same folder")
         print("✓ Detection Mode: Heuristic (keyword-based)")
 
     print("\n🌐 Server starting at: http://localhost:5000")
